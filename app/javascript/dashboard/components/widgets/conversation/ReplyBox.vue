@@ -8,6 +8,7 @@ import keyboardEventListenerMixins from 'shared/mixins/keyboardEventListenerMixi
 import { FEATURE_FLAGS } from 'dashboard/featureFlags';
 
 import ReplyToMessage from './ReplyToMessage.vue';
+import EditingMessage from './EditingMessage.vue';
 import AttachmentPreview from 'dashboard/components/widgets/AttachmentsPreview.vue';
 import ReplyTopPanel from 'dashboard/components/widgets/WootWriter/ReplyTopPanel.vue';
 import ReplyEmailHead from './ReplyEmailHead.vue';
@@ -65,6 +66,7 @@ export default {
     ReplyBottomPanel,
     ReplyEmailHead,
     ReplyToMessage,
+    EditingMessage,
     ReplyTopPanel,
     ContentTemplates,
     WhatsappTemplates,
@@ -103,6 +105,8 @@ export default {
     return {
       message: '',
       inReplyTo: {},
+      isEditing: false,
+      messageBeingEdited: {},
       isFocused: false,
       showEmojiPicker: false,
       attachedFiles: [],
@@ -145,9 +149,17 @@ export default {
     shouldShowReplyToMessage() {
       return (
         this.inReplyTo?.id &&
+        !this.isEditing &&
         !this.isPrivate &&
         this.inboxHasFeature(INBOX_FEATURES.REPLY_TO) &&
         !this.is360DialogWhatsAppChannel
+      );
+    },
+    shouldShowEditingMessage() {
+      return (
+        this.isEditing && 
+        this.messageBeingEdited?.id &&
+        !this.shouldShowReplyToMessage
       );
     },
     showWhatsappTemplates() {
@@ -470,6 +482,8 @@ export default {
     this.fetchAndSetReplyTo();
     emitter.on(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.fetchAndSetReplyTo);
 
+    emitter.on(BUS_EVENTS.SET_CHAT_INPUT_TEXT, this.setupEditMode);
+
     // A hacky fix to solve the drag and drop
     // Is showing on top of new conversation modal drag and drop
     // TODO need to find a better solution
@@ -483,6 +497,7 @@ export default {
     document.removeEventListener('paste', this.onPaste);
     document.removeEventListener('keydown', this.handleKeyEvents);
     emitter.off(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, this.fetchAndSetReplyTo);
+    emitter.off(BUS_EVENTS.SET_CHAT_INPUT_TEXT, this.setupEditMode);
     emitter.off(BUS_EVENTS.INSERT_INTO_NORMAL_EDITOR, this.addIntoEditor);
     emitter.off(
       BUS_EVENTS.NEW_CONVERSATION_MODAL,
@@ -687,22 +702,27 @@ export default {
       if (this.isReplyButtonDisabled) {
         return;
       }
+      
       if (!this.showMentions) {
-        const isOnWhatsApp =
-          this.isATwilioWhatsAppChannel ||
-          this.isAWhatsAppCloudChannel ||
-          this.is360DialogWhatsAppChannel;
-        // When users send messages containing both text and attachments on Instagram, Instagram treats them as separate messages.
-        // Although Chatwoot combines these into a single message, Instagram sends separate echo events for each component.
-        // This can create duplicate messages in Chatwoot. To prevent this issue, we'll handle text and attachments as separate messages.
-        const isOnInstagram = this.isAnInstagramChannel;
-        if ((isOnWhatsApp || isOnInstagram) && !this.isPrivate) {
-          this.sendMessageAsMultipleMessages(this.message);
+        if (this.isEditing) {
+          console.log('passing to editMessageContent()');
+          this.editMessageContent();
         } else {
-          const messagePayload = this.getMessagePayload(this.message);
-          this.sendMessage(messagePayload);
+          const isOnWhatsApp =
+            this.isATwilioWhatsAppChannel ||
+            this.isAWhatsAppCloudChannel ||
+            this.is360DialogWhatsAppChannel;
+          // When users send messages containing both text and attachments on Instagram, Instagram treats them as separate messages.
+          // Although Chatwoot combines these into a single message, Instagram sends separate echo events for each component.
+          // This can create duplicate messages in Chatwoot. To prevent this issue, we'll handle text and attachments as separate messages.
+          const isOnInstagram = this.isAnInstagramChannel;
+          if ((isOnWhatsApp || isOnInstagram) && !this.isPrivate) {
+            this.sendMessageAsMultipleMessages(this.message);
+          } else {
+            const messagePayload = this.getMessagePayload(this.message);
+            this.sendMessage(messagePayload);
+          }
         }
-
         if (!this.isPrivate) {
           this.clearEmailField();
         }
@@ -847,6 +867,7 @@ export default {
       this.attachedFiles = [];
       this.isRecordingAudio = false;
       this.resetReplyToMessage();
+      this.resetEditingMessage();
       this.resetAudioRecorderInput();
     },
     clearEmailField() {
@@ -1055,6 +1076,7 @@ export default {
         replyStorageKey,
         this.conversationId
       );
+      this.resetEditingMessage();
 
       this.inReplyTo = this.currentChat?.messages?.find(message => {
         if (message.id === replyToMessageId) {
@@ -1068,6 +1090,63 @@ export default {
       LocalStorage.deleteFromJsonStore(replyStorageKey, this.conversationId);
       emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE);
     },
+    resetEditingMessage() {
+      this.isEditing = false;
+      this.messageBeingEdited = null;
+      // emitter.emit(BUS_EVENTS.CLEAR_EDITING_STATE);
+    },
+    setupEditMode({ messageObject, isEditing }) {
+      if (isEditing) {
+        this.message =
+          typeof messageObject.content === 'string'
+            ? messageObject.content
+            : '';
+        this.messageBeingEdited = messageObject;
+        this.isEditing = true;
+        
+        if (this.inReplyTo) {
+          this.resetReplyToMessage();
+        }
+
+        this.$nextTick(() => {
+          this.$refs.editor?.focus();
+        });
+      }
+    },
+
+    cancelEdit() {
+      // this.resetEditingMessage();
+      this.clearMessage();
+    },
+
+    async editMessageContent() {
+      console.log('--- 📝 Editing Message Debug ---', JSON.parse(JSON.stringify(this.messageBeingEdited)));
+  
+      const messageId = this.messageBeingEdited?.id;
+      const conversationId = this.messageBeingEdited?.conversation_id || this.currentChat?.id;
+
+      if (!conversationId || !messageId) {
+        console.error('Missing IDs!', { conversationId, messageId });
+        return;
+      }
+
+      try {
+        await this.$store.dispatch('editMessage', {
+          conversationId,
+          messageId,
+          content: this.message,
+        });
+
+        emitter.emit(BUS_EVENTS.MESSAGE_SENT);
+        
+        // useAlert(this.$t('CONVERSATION.REPLYBOX.EDIT_SUCCESS')); 
+      } catch (error) {
+        const errorMessage =
+          error?.response?.data?.error || this.$t('CONVERSATION.MESSAGE_ERROR');
+        useAlert(errorMessage); 
+      }
+    },
+
     onNewConversationModalActive(isActive) {
       // Issue is if the new conversation modal is open and we drag and drop the file
       // then the file is not getting attached to the new conversation modal
@@ -1122,6 +1201,11 @@ export default {
         v-if="shouldShowReplyToMessage"
         :message="inReplyTo"
         @dismiss="resetReplyToMessage"
+      />
+      <EditingMessage
+        v-if="shouldShowEditingMessage"
+        :message="messageBeingEdited"
+        @dismiss="cancelEdit" 
       />
       <EmojiInput
         v-if="showEmojiPicker"

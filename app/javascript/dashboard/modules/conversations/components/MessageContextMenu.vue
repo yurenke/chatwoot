@@ -14,6 +14,8 @@ import {
 import MenuItem from '../../../components/widgets/conversation/contextMenu/menuItem.vue';
 import { useTrack } from 'dashboard/composables';
 import NextButton from 'dashboard/components-next/button/Button.vue';
+import { MESSAGE_TYPES, SENDER_TYPES, CONTENT_TYPES, ATTACHMENT_TYPES } from 'dashboard/components-next/message/constants';
+import { INBOX_TYPES } from 'dashboard/helper/inbox';
 
 export default {
   components: {
@@ -44,7 +46,7 @@ export default {
       default: false,
     },
   },
-  emits: ['open', 'close', 'replyTo'],
+  emits: ['open', 'close', 'replyTo', 'editMessage'],
   setup() {
     const { getPlainText } = useMessageFormatter();
 
@@ -56,6 +58,10 @@ export default {
     return {
       isCannedResponseModalOpen: false,
       showDeleteModal: false,
+      MESSAGE_TYPES,
+      SENDER_TYPES,
+      CONTENT_TYPES,
+      ATTACHMENT_TYPES,
     };
   },
   computed: {
@@ -63,6 +69,9 @@ export default {
       getAccount: 'accounts/getAccount',
       currentAccountId: 'getCurrentAccountId',
       getUISettings: 'getUISettings',
+      currentUserId: 'getCurrentUserID',
+      currentChat: 'getSelectedChat',
+      getInboxById: 'inboxes/getInbox',
     }),
     plainTextContent() {
       return this.getPlainText(this.messageContent);
@@ -81,6 +90,73 @@ export default {
         this.message.content_attributes ?? this.message.contentAttributes
       );
     },
+    inbox() {
+      return this.getInboxById(this.currentChat?.inbox_id);
+    },
+    isEditable() {
+      console.log('--- 🚀 Telegram Edit Debug (Full Data Fetch) 🚀 ---');
+
+      const messageId = this.message?.id;
+      const conversationId = this.message?.conversation_id || this.chat?.id;
+      const selectedChat = this.currentChat?.id === conversationId ? this.currentChat : (this.chat || {});
+      const messages = selectedChat.messages || [];
+      const fullMessage = messages.find(m => m.id === messageId) || this.message;
+
+      console.log('--- 🕵️ Data Verification ---', {
+        hasMessageType: 'message_type' in fullMessage,
+        hasSenderId: 'sender_id' in fullMessage,
+        actualMType: fullMessage.message_type,
+        actualSId: fullMessage.sender_id
+      });
+
+      if (!fullMessage.id || !selectedChat.id) return false;
+
+      const inbox = this.getInboxById(selectedChat.inbox_id) || {};
+      const channelType = selectedChat.channel_type || inbox.channel_type;
+      const isTelegram = String(channelType).toLowerCase().includes('telegram');
+
+      if (!isTelegram) return false;
+
+      const mType = Number(fullMessage.message_type); 
+      const sType = fullMessage.sender_type;
+      const sId = fullMessage.sender_id;
+      const cType = fullMessage.content_type;
+      const attachments = fullMessage.attachments ?? [];
+
+      const isOutgoing = mType === MESSAGE_TYPES.OUTGOING;
+      const isAgent = sType === SENDER_TYPES.USER;
+      const isMine = this.currentUserId && Number(sId) === Number(this.currentUserId);
+      const isPureText = (cType === CONTENT_TYPES.TEXT || !cType) && attachments.length === 0;
+      const hasEditableAttachments =
+        attachments.length > 0 &&
+        attachments.every(att =>
+          [
+            ATTACHMENT_TYPES.IMAGE,
+            ATTACHMENT_TYPES.AUDIO,
+            ATTACHMENT_TYPES.VIDEO,
+            ATTACHMENT_TYPES.FILE,
+          ].includes(att.file_type || att.fileType)
+        );
+
+      const createdTime = typeof fullMessage.created_at === 'number'
+        ? fullMessage.created_at * 1000
+        : new Date(fullMessage.created_at).getTime();
+
+      const isWithinTimeLimit =
+        (Date.now() - createdTime) < 48 * 60 * 60 * 1000;
+      console.log('--- 🛡️ Final Checks ---', { 
+        isOutgoing, isAgent, isMine, isPureText, hasEditableAttachments, isWithinTimeLimit 
+      });
+      
+      const finalResult = isOutgoing && 
+                      isAgent && 
+                      isMine && 
+                      (isPureText || hasEditableAttachments) && 
+                      isWithinTimeLimit;
+  
+      console.log('Final Result:', finalResult);
+      return finalResult;
+    }
   },
   methods: {
     async copyLinkToMessage() {
@@ -128,6 +204,10 @@ export default {
       });
       useTrack(CONVERSATION_EVENTS.TRANSLATE_A_MESSAGE);
       this.handleClose();
+    },
+    handleEdit() {
+      this.handleClose();
+      this.$emit('editMessage', this.message);
     },
     handleReplyTo() {
       this.$emit('replyTo', this.message);
@@ -214,6 +294,17 @@ export default {
           }"
           variant="icon"
           @click.stop="handleCopy"
+        />
+        <MenuItem
+          v-if="isEditable"
+          :option="{
+            icon: 'edit',
+            label: $t('CONVERSATION.CONTEXT_MENU.EDIT') === 'CONVERSATION.CONTEXT_MENU.EDIT' 
+                    ? '編輯' 
+                    : $t('CONVERSATION.CONTEXT_MENU.EDIT'),
+          }"
+          variant="icon"
+          @click.stop="handleEdit"
         />
         <MenuItem
           v-if="enabledOptions['translate']"

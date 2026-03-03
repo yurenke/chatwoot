@@ -215,7 +215,8 @@ group :production do
 end
 
 group :development do
-  gem 'annotaterb'
+  # gem 'annotaterb'
+  gem 'annotate', '~> 3.2'
   gem 'bullet'
   gem 'letter_opener'
   gem 'scss_lint', require: false

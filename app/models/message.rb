@@ -7,6 +7,7 @@
 #  content                   :text
 #  content_attributes        :json
 #  content_type              :integer          default("text"), not null
+#  edited_at                 :datetime
 #  external_source_ids       :jsonb
 #  message_type              :integer          not null
 #  private                   :boolean          default(FALSE), not null
@@ -144,6 +145,7 @@ class Message < ApplicationRecord
   def push_event_data
     data = attributes.symbolize_keys.merge(
       created_at: created_at.to_i,
+      edited_at: edited_at&.to_i,
       message_type: message_type_before_type_cast,
       conversation_id: conversation&.display_id,
       conversation: conversation.present? ? conversation_push_event_data : nil
@@ -177,6 +179,7 @@ class Message < ApplicationRecord
       content: outgoing_content,
       conversation: conversation.webhook_data,
       created_at: created_at,
+      edited_at: edited_at,
       id: id,
       inbox: inbox.webhook_data,
       message_type: message_type,
@@ -199,6 +202,13 @@ class Message < ApplicationRecord
     return false if template? && %w[input_csat text].exclude?(content_type)
 
     true
+  end
+
+  def editable_by?(user)
+    return false unless outgoing?
+    return false unless sender == user
+    return true if attachments.empty?
+    attachments.all? { |att| %w[image audio video file].include?(att.file_type) }
   end
 
   def auto_reply_email?

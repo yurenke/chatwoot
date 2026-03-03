@@ -27,6 +27,7 @@ const {
   status,
   isPrivate,
   createdAt,
+  editedAt,
   sourceId,
   messageType,
   contentAttributes,
@@ -34,6 +35,10 @@ const {
 
 const readableTime = computed(() =>
   messageTimestamp(createdAt.value, 'LLL d, h:mm a')
+);
+
+const readableEditedTime = computed(() =>
+  editedAt.value ? messageTimestamp(editedAt.value, 'LLL d, h:mm a') : null
 );
 
 const showStatusIndicator = computed(() => {
@@ -128,7 +133,14 @@ const statusToShow = computed(() => {
 <template>
   <div class="text-xs flex items-center gap-1.5">
     <div class="inline">
-      <time class="inline">{{ readableTime }}</time>
+      <!-- <time class="inline">{{ readableTime }}</time> -->
+        <time v-if="editedAt" class="inline italic opacity-90">
+          edited {{ readableEditedTime }}
+        </time>
+        
+        <time v-else class="inline">
+          {{ readableTime }}
+        </time>
     </div>
     <Icon v-if="isPrivate" icon="i-lucide-lock-keyhole" class="size-3" />
     <MessageStatus v-if="showStatusIndicator" :status="statusToShow" />

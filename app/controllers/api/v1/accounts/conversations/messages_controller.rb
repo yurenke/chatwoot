@@ -14,8 +14,14 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def update
-    Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
-    @message = message
+    if permitted_params[:content].present?
+      edit_message_content!
+    else
+      Messages::StatusUpdateService.new(message, permitted_params[:status], permitted_params[:external_error]).perform
+      @message = message
+    end
+
+    render :update
   end
 
   def destroy
@@ -57,7 +63,10 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   private
 
   def message
-    @message ||= @conversation.messages.find(permitted_params[:id])
+    # @message ||= @conversation.messages.find(permitted_params[:id])
+    @message ||= @conversation.messages
+    .includes(:sender, :attachments)
+    .find(permitted_params[:id])
   end
 
   def message_finder
@@ -65,7 +74,7 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   end
 
   def permitted_params
-    params.permit(:id, :target_language, :status, :external_error)
+    params.permit(:id, :target_language, :status, :external_error, :content)
   end
 
   def already_translated_content_available?
@@ -75,6 +84,19 @@ class Api::V1::Accounts::Conversations::MessagesController < Api::V1::Accounts::
   # API inbox check
   def ensure_api_inbox
     # Only API inboxes can update messages
-    render json: { error: 'Message status update is only allowed for API inboxes' }, status: :forbidden unless @conversation.inbox.api?
+    render json: { error: 'Message status update is only allowed for API and Telegram inboxes' }, status: :forbidden unless @conversation.inbox.api? || @conversation.inbox.channel_type == 'Channel::Telegram'
+  end
+
+  def edit_message_content!
+    authorize message, :edit?
+
+    message.update!(
+      content: permitted_params[:content],
+      edited_at: Time.current
+    )
+
+    if message.inbox.channel.is_a?(Channel::Telegram)
+      ::EditMessageOnTelegramJob.perform_later(message.id)
+    end
   end
 end

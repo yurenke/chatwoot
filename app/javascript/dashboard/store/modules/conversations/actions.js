@@ -320,6 +320,16 @@ const actions = {
     handleVoiceCallUpdated(commit, message, rootGetters?.getCurrentUserID);
   },
 
+  editMessage: async ({ commit }, { conversationId, messageId, content }) => {
+    try {
+      const response = await MessageApi.update(conversationId, messageId, content);
+      commit(types.ADD_MESSAGE, response.data);
+      // return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   deleteMessage: async function deleteLabels(
     { commit },
     { conversationId, messageId }

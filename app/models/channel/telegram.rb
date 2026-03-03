@@ -80,6 +80,14 @@ class Channel::Telegram < ApplicationRecord
     message.content_attributes['in_reply_to_external_id']
   end
 
+  def edit_message_on_telegram(message)
+    if message.attachments.empty?
+      edit_message_text(message)
+    else
+      edit_message_caption(message)
+    end
+  end
+
   private
 
   def ensure_valid_bot_token
@@ -168,4 +176,35 @@ class Channel::Telegram < ApplicationRecord
                     reply_to_message_id: reply_to_message_id
                   }.merge(business_body))
   end
+
+  def edit_message_text(message)
+    response = HTTParty.post(
+      "#{telegram_api_url}/editMessageText",
+      body: {
+        chat_id: chat_id(message),
+        message_id: message.source_id,
+        text: message.outgoing_content,
+        parse_mode: 'HTML'
+      }
+    )
+
+    process_error(message, response)
+    response.success?
+  end
+
+  def edit_message_caption(message)
+    response = HTTParty.post(
+      "#{telegram_api_url}/editMessageCaption",
+      body: {
+        chat_id: chat_id(message),
+        message_id: message.source_id,
+        caption: message.outgoing_content,
+        parse_mode: 'HTML'
+      }
+    )
+
+    process_error(message, response)
+    response.success?
+  end
+
 end

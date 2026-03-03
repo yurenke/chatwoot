@@ -13,6 +13,8 @@
 
 # The service will terminate if any of the attachment requests fail when the message has multiple attachments
 # We will create multiple messages in telegram if the message has multiple attachments (if its documents or mixed media).
+require 'rest-client'
+
 class Telegram::SendAttachmentsService
   pattr_initialize [:message!]
 
@@ -109,17 +111,36 @@ class Telegram::SendAttachmentsService
     temp_file_path
   end
 
+  def wrap_restclient_response(response)
+    parsed = JSON.parse(response.body) rescue {}
+
+    Struct.new(:code, :parsed_response) do
+      def success?
+        code.between?(200, 299)
+      end
+    end.new(response.code, parsed)
+  end
+
   def send_file(chat_id, file_path, reply_to_message_id)
-    File.open(file_path, 'rb') do |file|
-      HTTParty.post("#{channel.telegram_api_url}/sendDocument",
-                    body: {
-                      chat_id: chat_id,
-                      **business_connection_body,
-                      document: file,
-                      reply_to_message_id: reply_to_message_id
-                    },
-                    multipart: true)
-    end
+    file = File.open(file_path, 'rb')
+
+    raw_response = RestClient::Request.execute(
+      method: :post,
+      url: "#{channel.telegram_api_url}/sendDocument",
+      payload: {
+        chat_id: chat_id,
+        **business_connection_body,
+        document: file,
+        reply_to_message_id: reply_to_message_id
+      }
+    )
+
+    wrap_restclient_response(raw_response)
+
+  rescue RestClient::ExceptionWithResponse => e
+    wrap_restclient_response(e.response)
+  ensure
+    file&.close
   end
 
   def handle_response(response)
