@@ -15,6 +15,8 @@ require 'faraday/multipart'
 
 # The service will terminate if any of the attachment requests fail when the message has multiple attachments
 # We will create multiple messages in telegram if the message has multiple attachments (if its documents or mixed media).
+require 'rest-client'
+
 class Telegram::SendAttachmentsService
   pattr_initialize [:message!]
 

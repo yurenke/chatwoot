@@ -196,7 +196,9 @@
       "CREATE": "新增筆記",
       "INSERT_READ_MORE": "Read more",
       "DISMISS_REPLY": "Dismiss reply",
+      "DISMISS_EDIT": "Dismiss edit",
       "REPLYING_TO": "Replying to:",
+      "EDITING": "Editing:",
       "TIP_EMOJI_ICON": "顯示 emoji 選擇器",
       "TIP_ATTACH_ICON": "附件",
       "TIP_AUDIORECORDER_ICON": "Record audio",
@@ -259,6 +261,7 @@
     },
     "CONTEXT_MENU": {
       "COPY": "複製",
+      "EDIT": "編輯",
       "REPLY_TO": "Reply to this message",
       "DELETE": "刪除",
       "CREATE_A_CANNED_RESPONSE": "Add to canned responses",

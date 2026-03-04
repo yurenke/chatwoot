@@ -8,7 +8,10 @@ json.content_type message.content_type
 json.status message.status
 json.content_attributes message.content_attributes
 json.created_at message.created_at.to_i
+json.edited_at message.edited_at.to_i if message.edited_at.present?
 json.private message.private
 json.source_id message.source_id
+json.sender_id message.sender_id
+json.sender_type message.sender_type
 json.sender message.sender.push_event_data if message.sender
 json.attachments message.attachments.map(&:push_event_data) if message.attachments.present?

@@ -86,6 +86,7 @@ import { useBranding } from 'shared/composables/useBranding';
  * @property {boolean} [private=false] - Whether the message is private
  * @property {number|null} [senderId=null] - The ID of the sender
  * @property {number} createdAt - Timestamp when the message was created
+ * @property {number|null} [editedAt=null] - Timestamp when the message was last edited
  * @property {number} currentUserId - The ID of the current user
  * @property {number} id - The unique identifier for the message
  * @property {number} messageType - The type of message (must be one of MESSAGE_TYPES)
@@ -122,6 +123,7 @@ const props = defineProps({
   },
   conversationId: { type: Number, required: true },
   createdAt: { type: Number, required: true }, // eslint-disable-line vue/no-unused-properties
+  editedAt: { type: Number, default: null },
   currentUserId: { type: Number, required: true }, // eslint-disable-line vue/no-unused-properties
   groupWithNext: { type: Boolean, default: false },
   inboxId: { type: Number, default: null }, // eslint-disable-line vue/no-unused-properties
@@ -441,6 +443,13 @@ function handleReplyTo() {
   emitter.emit(BUS_EVENTS.TOGGLE_REPLY_TO_MESSAGE, props);
 }
 
+function handleEdit() {
+  emitter.emit(BUS_EVENTS.SET_CHAT_INPUT_TEXT, { 
+    messageObject: props, 
+    isEditing: true 
+  });
+}
+
 const avatarInfo = computed(() => {
   if (props.contentAttributes?.externalEcho) {
     const { name, avatar_url, channel_type, medium } = inbox.value;
@@ -582,6 +591,7 @@ provideMessageContext({
         @open="openContextMenu"
         @close="closeContextMenu"
         @reply-to="handleReplyTo"
+        @edit-message="handleEdit"
       />
     </div>
   </div>
