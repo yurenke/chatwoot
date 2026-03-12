@@ -7,9 +7,10 @@ class Telegram::IncomingMessageService
   pattr_initialize [:inbox!, :params!]
 
   def perform
+    Rails.logger.info "TELEGRAM INCOMING: #{@params.inspect}"
     # chatwoot doesn't support group conversations at the moment
     transform_business_message!
-    return unless private_message?
+    return unless supported_message?
 
     set_contact
     update_contact_avatar
@@ -39,9 +40,9 @@ class Telegram::IncomingMessageService
 
   def set_contact
     contact_inbox = ::ContactInboxWithContactBuilder.new(
-      source_id: telegram_params_from_id,
+      source_id: group_chat? ? telegram_params_chat_id : telegram_params_from_id,
       inbox: inbox,
-      contact_attributes: contact_attributes
+      contact_attributes: group_chat? ? group_contact_attributes : contact_attributes
     ).perform
 
     # TODO: Should we update contact_attributes when the user changes their first or last name?
@@ -62,7 +63,12 @@ class Telegram::IncomingMessageService
   def update_contact_avatar
     return if @contact.avatar.attached?
 
-    avatar_url = inbox.channel.get_telegram_profile_image(telegram_params_from_id)
+    avatar_url =
+      if group_chat?
+        inbox.channel.get_telegram_group_photo(telegram_params_chat_id)
+      else
+        inbox.channel.get_telegram_profile_image(telegram_params_from_id)
+      end
     ::Avatar::AvatarFromUrlJob.perform_later(@contact, avatar_url) if avatar_url
   end
 
@@ -103,6 +109,23 @@ class Telegram::IncomingMessageService
       language_code: telegram_params_language_code,
       social_telegram_user_id: telegram_params_from_id,
       social_telegram_user_name: telegram_params_username
+    }
+  end
+
+  def group_contact_attributes
+    {
+      name: telegram_params_group_title, # group title 做 contact name
+      additional_attributes: group_additional_attributes
+    }
+  end
+
+  def group_additional_attributes
+    {
+      # 如果需要顯示 username / language_code，可以加 nil 或空字串
+      username: nil,
+      language_code: nil,
+      social_telegram_user_id: telegram_params_chat_id, # group id
+      social_telegram_user_name: nil
     }
   end
 

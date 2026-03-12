@@ -41,6 +41,16 @@ class Channel::Telegram < ApplicationRecord
     message_id
   end
 
+  def get_telegram_group_photo(chat_id)
+    response = HTTParty.get("#{telegram_api_url}/getChat", query: { chat_id: chat_id })
+    return nil unless response.success?
+
+    photo = response.parsed_response.dig('result', 'photo')
+    return nil unless photo&.dig('big_file_id')
+
+    get_telegram_file_path(photo['big_file_id'])
+  end
+
   def get_telegram_profile_image(user_id)
     # get profile image from telegram
     response = HTTParty.get("#{telegram_api_url}/getUserProfilePhotos", query: { user_id: user_id })

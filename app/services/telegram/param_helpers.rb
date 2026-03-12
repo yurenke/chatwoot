@@ -1,16 +1,30 @@
 module Telegram::ParamHelpers
   # ensures that message is from a private chat and not a group chat
   def private_message?
-    return true if callback_query_params?
+    chat_type == 'private'
+  end
 
-    params.dig(:message, :chat, :type) == 'private'
+  def group_chat?
+    %w[group supergroup].include?(chat_type)
+  end
+
+  def supported_message?
+    message_params? || callback_query_params?
   end
 
   def telegram_params_content_attributes
-    reply_to = params.dig(:message, :reply_to_message, :message_id)
-    return { 'in_reply_to_external_id' => reply_to } if reply_to
+    attrs = {}
 
-    {}
+    reply_to = params.dig(:message, :reply_to_message, :message_id)
+    attrs['in_reply_to_external_id'] = reply_to if reply_to
+
+    if group_chat?
+      name = [telegram_params_first_name, telegram_params_last_name].compact.join(' ')
+      attrs['telegram_sender_full_name'] = name if name.present?
+      attrs['telegram_sender_id'] = telegram_params_from_id
+    end
+
+    attrs
   end
 
   def business_message?
@@ -32,6 +46,14 @@ module Telegram::ParamHelpers
     params[:callback_query].present?
   end
 
+  def chat_type
+    if callback_query_params?
+      params.dig(:callback_query, :message, :chat, :type)
+    else
+      params.dig(:message, :chat, :type)
+    end
+  end
+
   def telegram_params_base_object
     if callback_query_params?
       params[:callback_query]
@@ -41,7 +63,9 @@ module Telegram::ParamHelpers
   end
 
   def contact_params
-    if business_message_outgoing?
+    if group_chat?
+      telegram_params_base_object[:chat]
+    elsif business_message_outgoing?
       telegram_params_base_object[:chat]
     else
       telegram_params_base_object[:from]
@@ -55,19 +79,19 @@ module Telegram::ParamHelpers
   end
 
   def telegram_params_first_name
-    contact_params[:first_name]
+    telegram_params_base_object[:from][:first_name]
   end
 
   def telegram_params_last_name
-    contact_params[:last_name]
+    telegram_params_base_object[:from][:last_name]
   end
 
   def telegram_params_username
-    contact_params[:username]
+    telegram_params_base_object[:from][:username]
   end
 
   def telegram_params_language_code
-    contact_params[:language_code]
+    telegram_params_base_object[:from][:language_code]
   end
 
   def telegram_params_chat_id
@@ -76,6 +100,12 @@ module Telegram::ParamHelpers
     else
       telegram_params_base_object[:chat][:id]
     end
+  end
+
+  def telegram_params_group_title
+    return nil unless group_chat?
+
+    telegram_params_base_object[:chat][:title]
   end
 
   def telegram_params_business_connection_id

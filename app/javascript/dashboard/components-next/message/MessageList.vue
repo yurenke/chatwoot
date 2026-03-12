@@ -172,6 +172,7 @@ const getInReplyToMessage = parentMessage => {
       />
       <Message
         v-bind="message"
+        :previous-message="allMessages[index - 1]"
         :is-email-inbox="isAnEmailChannel"
         :in-reply-to="getInReplyToMessage(message)"
         :group-with-next="shouldGroupWithNext(index, allMessages)"

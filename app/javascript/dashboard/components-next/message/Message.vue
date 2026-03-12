@@ -136,6 +136,7 @@ const props = defineProps({
   senderId: { type: Number, default: null },
   senderType: { type: String, default: null },
   sourceId: { type: String, default: '' }, // eslint-disable-line vue/no-unused-properties
+  previousMessage: { type: Object, default: null },
 });
 
 const emit = defineEmits(['retry']);
@@ -498,6 +499,21 @@ const avatarTooltip = computed(() => {
   return `${t('CONVERSATION.SENT_BY')} ${avatarInfo.value.name}`;
 });
 
+const shouldShowTelegramSenderName = computed(() => {
+  if (props.messageType !== MESSAGE_TYPES.INCOMING) return false;
+
+  const fullName = props.contentAttributes?.telegramSenderFullName;
+  if (!fullName) return false;
+  if (!props.previousMessage) return true;
+
+  const currentId = props.contentAttributes?.telegramSenderId;
+  if (!currentId) return false;
+
+  const previousId = props.previousMessage?.contentAttributes?.telegramSenderId;
+
+  return previousId !== currentId;
+});
+
 const setupHighlightTimer = () => {
   if (Number(route.query.messageId) !== Number(props.id)) {
     return;
@@ -562,7 +578,7 @@ provideMessageContext({
         <Avatar v-bind="avatarInfo" :size="24" />
       </div>
       <div
-        class="[grid-area:bubble] flex"
+        class="[grid-area:bubble] flex flex-col"
         :class="{
           'ltr:ml-8 rtl:mr-8 justify-end': orientation === ORIENTATION.RIGHT,
           'ltr:mr-8 rtl:ml-8': orientation === ORIENTATION.LEFT,
@@ -570,6 +586,9 @@ provideMessageContext({
         }"
         @contextmenu="openContextMenu($event)"
       >
+        <div v-if="shouldShowTelegramSenderName" class="telegram-group-sender">
+          {{ props.contentAttributes.telegramSenderFullName }}
+        </div>
         <Component :is="componentToRender" />
       </div>
       <MessageError
@@ -606,5 +625,11 @@ provideMessageContext({
   .right-bubble {
     @apply ltr:rounded-tr-sm rtl:rounded-tl-sm;
   }
+}
+.telegram-group-sender {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--s-600);
+  margin-bottom: 2px;
 }
 </style>
