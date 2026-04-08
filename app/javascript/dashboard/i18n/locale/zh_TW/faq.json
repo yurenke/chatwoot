@@ -1,0 +1,30 @@
+{
+  "FAQ": {
+    "TITLE": "常見問題集",
+    "DOCUMENT_COUNT": "{count} 份文件",
+
+    "UPLOAD_BUTTON": "上傳 FAQ",
+    "UPLOAD_MODAL_TITLE": "正在上傳 FAQ",
+    "UPLOAD_SUCCESS": "檔案已上傳，系統正在處理",
+    "UPLOAD_FAILED": "上傳失敗",
+
+    "DELETE_BUTTON": "刪除",
+    "DELETE_CONFIRM_TITLE": "確認刪除",
+    "DELETE_CONFIRM_TEXT": "確定要刪除這個文件嗎？",
+    "DELETE_SUCCESS": "文件刪除成功",
+    "DELETE_FAILED": "文件刪除失敗",
+    "CANCEL": "取消",
+    "CONFIRM": "確認",
+
+    "LOADING": "載入文件中...",
+    "EMPTY": "尚未上傳任何文件",
+
+    "STATUS": {
+      "UPLOADED": "已上傳",
+      "PROCESSING": "檔案處理中",
+      "INDEXING": "建立知識庫中",
+      "INDEXED": "已完成",
+      "FAILED": "失敗"
+    }
+  }
+}

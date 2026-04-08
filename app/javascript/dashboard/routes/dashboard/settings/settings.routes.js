@@ -26,6 +26,7 @@ import profile from './profile/profile.routes';
 import security from './security/security.routes';
 import conversationWorkflow from './conversationWorkflow/conversationWorkflow.routes';
 import captain from './captain/captain.routes';
+import faq from './faq/faq.routes'; 
 
 export default {
   routes: [
@@ -59,6 +60,7 @@ export default {
     ...integrations.routes,
     ...labels.routes,
     ...macros.routes,
+    ...faq.routes,
     ...reports.routes,
     ...sla.routes,
     ...teams.routes,

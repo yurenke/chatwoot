@@ -31,11 +31,19 @@ class Telegram::UpdateMessageService
   def update_message
     edited_message = params[:edited_message]
 
+    updates = {}
     if edited_message[:text].present?
-      @message.update!(content: edited_message[:text])
+      updates[:content] = edited_message[:text]
     elsif edited_message[:caption].present?
-      @message.update!(content: edited_message[:caption])
+      updates[:content] = edited_message[:caption]
     end
+
+    # content_attributes
+    @message.content_attributes ||= {}
+    @message.content_attributes["tg_edit_date"] = edited_message[:edit_date]
+    updates[:content_attributes] = @message.content_attributes
+
+    @message.update!(updates)
   end
 
   def transform_business_message!

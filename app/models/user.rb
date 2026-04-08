@@ -116,6 +116,7 @@ class User < ApplicationRecord
   # rubocop:enable Rails/HasManyOrHasOneDependent
 
   before_validation :set_password_and_uid, on: :create
+  after_create :set_default_ui_settings
   after_destroy :remove_macros
 
   scope :order_by_full_name, -> { order('lower(name) ASC') }
@@ -130,6 +131,20 @@ class User < ApplicationRecord
 
   def set_password_and_uid
     self.uid = email
+  end
+
+  def set_default_ui_settings
+    return if self.ui_settings.present?
+
+    self.update!(
+      ui_settings: {
+        "locale" => "zh_TW",
+        "notification_tone" => "chime",
+        "editor_message_key" => "enter",
+        "enable_audio_alerts" => "assigned",
+        "alert_if_unread_assigned_conversation_exist" => true
+      }
+    )
   end
 
   def assigned_inboxes

@@ -180,15 +180,15 @@ zh_TW:
         recorded_at: Recorded date
   notifications:
     notification_title:
-      conversation_creation: 'A conversation (#%{display_id}) has been created in %{inbox_name}'
-      conversation_assignment: 'A conversation (#%{display_id}) has been assigned to you'
-      assigned_conversation_new_message: 'A new message is created in conversation (#%{display_id})'
-      conversation_mention: 'You have been mentioned in conversation (#%{display_id})'
-      sla_missed_first_response: 'SLA target first response missed for conversation (#%{display_id})'
-      sla_missed_next_response: 'SLA target next response missed for conversation (#%{display_id})'
-      sla_missed_resolution: 'SLA target resolution missed for conversation (#%{display_id})'
-    attachment: 'Attachment'
-    no_content: 'No content'
+      conversation_creation: '%{inbox_name} 中已建立對話（#%{display_id}）'
+      conversation_assignment: '對話（#%{display_id}）已指派給您'
+      assigned_conversation_new_message: '對話（#%{display_id}）有新訊息'
+      conversation_mention: '您在對話（#%{display_id}）中被提及'
+      sla_missed_first_response: '對話（#%{display_id}）未在首次回應 SLA 內回覆'
+      sla_missed_next_response: '對話（#%{display_id}）未在後續回應 SLA 內回覆'
+      sla_missed_resolution: '對話（#%{display_id}）未在解決 SLA 內完成'
+    attachment: '附件'
+    no_content: '無內容'
   conversations:
     captain:
       handoff: 'Transferring to another agent for further assistance.'

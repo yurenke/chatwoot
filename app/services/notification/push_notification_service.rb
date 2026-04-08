@@ -6,10 +6,12 @@ class Notification::PushNotificationService
   def perform
     return unless user_subscribed_to_notification?
 
-    notification_subscriptions.each do |subscription|
-      send_browser_push(subscription)
-      send_fcm_push(subscription)
-      send_push_via_chatwoot_hub(subscription)
+    I18n.with_locale(user_locale) do
+      notification_subscriptions.each do |subscription|
+        send_browser_push(subscription)
+        send_fcm_push(subscription)
+        send_push_via_chatwoot_hub(subscription)
+      end
     end
   end
 
@@ -24,6 +26,10 @@ class Notification::PushNotificationService
     return true if notification_setting.public_send("push_#{notification.notification_type}?")
 
     false
+  end
+
+  def user_locale
+    user.ui_settings&.[]("locale").presence || I18n.default_locale
   end
 
   def conversation

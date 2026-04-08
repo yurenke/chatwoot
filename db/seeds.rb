@@ -1,97 +1,55 @@
-# loading installation configs
+# ----------------------------------------
+# Load installation configs
+# ----------------------------------------
 GlobalConfig.clear_cache
 ConfigLoader.new.process
 
-## Seeds productions
-if Rails.env.production?
-  # Setup Onboarding flow
-  Redis::Alfred.set(Redis::Alfred::CHATWOOT_INSTALLATION_ONBOARDING, true)
+# ----------------------------------------
+# Ensure default settings
+# ----------------------------------------
+installation_config = InstallationConfig.find_by(name: 'CREATE_NEW_ACCOUNT_FROM_DASHBOARD')
+
+if installation_config
+  installation_config.update!(value: true)
 end
 
-## Seeds for Local Development
-unless Rails.env.production?
+GlobalConfig.clear_cache
 
-  # Enables creating additional accounts from dashboard
-  installation_config = InstallationConfig.find_by(name: 'CREATE_NEW_ACCOUNT_FROM_DASHBOARD')
-  installation_config.value = true
-  installation_config.save!
-  GlobalConfig.clear_cache
+# ----------------------------------------
+# Create default account
+# ----------------------------------------
+account = Account.find_or_create_by!(name: 'PlayAce')
 
-  account = Account.create!(
-    name: 'Acme Inc'
-  )
+# ----------------------------------------
+# Create admin user
+# ----------------------------------------
+admin_email = ENV.fetch('ADMIN_EMAIL', 'admin@example.com')
+admin_password = ENV.fetch('ADMIN_PASSWORD', 'password123!')
 
-  secondary_account = Account.create!(
-    name: 'Acme Org'
-  )
-
-  user = User.new(name: 'John', email: 'john@acme.inc', password: 'Password1!', type: 'SuperAdmin')
-  user.skip_confirmation!
-  user.save!
-
-  AccountUser.create!(
-    account_id: account.id,
-    user_id: user.id,
-    role: :administrator
-  )
-
-  AccountUser.create!(
-    account_id: secondary_account.id,
-    user_id: user.id,
-    role: :administrator
-  )
-
-  web_widget = Channel::WebWidget.create!(account: account, website_url: 'https://acme.inc')
-
-  inbox = Inbox.create!(channel: web_widget, account: account, name: 'Acme Support')
-  InboxMember.create!(user: user, inbox: inbox)
-
-  contact_inbox = ContactInboxWithContactBuilder.new(
-    source_id: user.id,
-    inbox: inbox,
-    hmac_verified: true,
-    contact_attributes: { name: 'jane', email: 'jane@example.com', phone_number: '+2320000' }
-  ).perform
-
-  conversation = Conversation.create!(
-    account: account,
-    inbox: inbox,
-    status: :open,
-    assignee: user,
-    contact: contact_inbox.contact,
-    contact_inbox: contact_inbox,
-    additional_attributes: {}
-  )
-
-  # sample email collect
-  Seeders::MessageSeeder.create_sample_email_collect_message conversation
-
-  Message.create!(content: 'Hello', account: account, inbox: inbox, conversation: conversation, sender: contact_inbox.contact,
-                  message_type: :incoming)
-
-  # sample location message
-  #
-  location_message = Message.new(content: 'location', account: account, inbox: inbox, sender: contact_inbox.contact, conversation: conversation,
-                                 message_type: :incoming)
-  location_message.attachments.new(
-    account_id: account.id,
-    file_type: 'location',
-    coordinates_lat: 37.7893768,
-    coordinates_long: -122.3895553,
-    fallback_title: 'Bay Bridge, San Francisco, CA, USA'
-  )
-  location_message.save!
-
-  # sample card
-  Seeders::MessageSeeder.create_sample_cards_message conversation
-  # input select
-  Seeders::MessageSeeder.create_sample_input_select_message conversation
-  # form
-  Seeders::MessageSeeder.create_sample_form_message conversation
-  # articles
-  Seeders::MessageSeeder.create_sample_articles_message conversation
-  # csat
-  Seeders::MessageSeeder.create_sample_csat_collect_message conversation
-
-  CannedResponse.create!(account: account, short_code: 'start', content: 'Hello welcome to chatwoot.')
+admin = User.find_or_create_by!(email: admin_email) do |u|
+  u.name = 'PlayAce CS Admin'
+  u.password = admin_password
+  u.password_confirmation = admin_password
+  u.type = 'SuperAdmin'
 end
+
+# 確保已驗證（避免登入問題）
+admin.skip_confirmation! if admin.respond_to?(:skip_confirmation!)
+admin.save! if admin.changed?
+
+# ----------------------------------------
+# Assign admin to account
+# ----------------------------------------
+AccountUser.find_or_create_by!(
+  account: account,
+  user: admin
+) do |au|
+  au.role = :administrator
+end
+
+# ----------------------------------------
+# Done
+# ----------------------------------------
+puts "Seed completed:"
+puts "Account: #{account.name}"
+puts "Admin: #{admin.email}"

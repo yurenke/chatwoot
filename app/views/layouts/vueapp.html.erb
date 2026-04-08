@@ -55,7 +55,10 @@
         <% end %>
         enabledLanguages: <%= available_locales_with_name.to_json.html_safe %>,
         helpUrls: <%= feature_help_urls.to_json.html_safe %>,
-        selectedLocale: '<%= I18n.locale %>'
+        selectedLocale: '<%= I18n.locale %>',
+        faqPollingInterval: <%= ENV.fetch('FAQ_POLLING_INTERVAL', 10).to_i %>,
+        faqBucket: "<%= ENV['S3_FAQ_BUCKET_NAME'] %>",
+        faqFolder: "<%= ENV['S3_FAQ_FOLDER_NAME'] %>"
       }
       window.globalConfig = <%= raw @global_config.to_json %>
       window.browserConfig = {

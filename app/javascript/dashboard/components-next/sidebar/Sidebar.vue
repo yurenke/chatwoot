@@ -683,6 +683,12 @@ const menuItems = computed(() => {
           to: accountScopedRoute('settings_applications'),
         },
         {
+          name: 'Settings Knowledge Base',
+          label: t('SIDEBAR.FAQS'),
+          icon: 'i-lucide-book-open',
+          to: accountScopedRoute('faq_index'),
+        },
+        {
           name: 'Settings Audit Logs',
           label: t('SIDEBAR.AUDIT_LOGS'),
           icon: 'i-lucide-briefcase',
