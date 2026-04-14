@@ -74,3 +74,10 @@ remove_orphan_conversations_job:
   cron: '0 */12 * * *'
   class: 'Internal::RemoveOrphanConversationsJob'
   queue: housekeeping
+
+# executed every Sunday at 1900 UTC
+# Cleanup resolved conversations inactive for 90 days based on last activity and purge unattached active storage blobs. 
+remove_stale_content_job:
+  cron: '0 19 * * 0'
+  class: 'Internal::RemoveStaleContentJob'
+  queue: housekeeping
