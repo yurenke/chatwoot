@@ -17,7 +17,7 @@ class Internal::RemoveStaleContentService
 
     # cleanup unattached S3 blobs
     ActiveStorage::Blob.unattached.where('created_at < ?', 2.days.ago).find_each(batch_size: 500) do |blob|
-      blob.purge
+      blob.purge_later
     end
 
     Rails.logger.info "[Cleanup] Task completed."
